@@ -1,81 +1,88 @@
-import { GateStatus, UserContext, QueueStatus, RouteRecommendation, VenueZone } from './types';
+import { GateStatus, UserContext, QueueStatus, RouteRecommendation, VenueZoneId, VenueZone } from './types';
 
-// Returns the best gate for a user based on location and wait times.
-export function getBestGate(user: UserContext, gates: GateStatus[]): RouteRecommendation {
-  let bestGate: GateStatus | null = null;
-  
+export function getBestGate(user: UserContext, gates: GateStatus[], zones: VenueZone[]): RouteRecommendation {
+  const openGates = gates.filter(g => g.isOpen);
+  if (openGates.length === 0) {
+    return { from: 'Outside', to: 'Closed', pathSummary: [], estimatedMinutes: 0, reason: 'All gates are currently closed.' };
+  }
+
   if (user.needsAccessibility) {
-    // If accessibility is needed, strongly prefer gates matching the user's zone or with very low wait times.
-    const accessibleGates = gates.filter(g => g.name.toLowerCase().includes('accessibility'));
-    if (accessibleGates.length > 0) {
-      bestGate = accessibleGates.sort((a, b) => a.waitTimeMinutes - b.waitTimeMinutes)[0];
+    const adaGates = openGates.filter(g => g.name.toLowerCase().includes('accessibility'));
+    if (adaGates.length > 0) {
+      const bestAda = adaGates.sort((a, b) => a.estimatedEntryTime - b.estimatedEntryTime)[0];
       return {
-        pathSteps: [`Navigate to ${bestGate.name}`],
-        estimatedTimeMinutes: bestGate.waitTimeMinutes,
-        reason: 'Recommended for optimal accessibility.'
+        from: 'Outside',
+        to: bestAda.name,
+        pathSummary: [`Navigate to ${bestAda.name} at the ${bestAda.zone} entrance.`, `Use dedicated ADA entry lanes.`],
+        estimatedMinutes: bestAda.estimatedEntryTime,
+        reason: 'Optimal accessible routing with lowest waiting time.'
       };
     }
   }
 
-  // Filter open gates and sort by wait times
-  const openGates = gates.filter(g => g.isOpen);
-  if (openGates.length === 0) {
-    return { pathSteps: [], estimatedTimeMinutes: 0, reason: 'All gates are currently closed.' };
-  }
+  // Filter out gates in zones that have a "high" congestion and "increasing" crowdTrend
+  const discouragedZones = zones.filter(z => z.congestionLevel === 'high' && z.crowdTrend === 'increasing').map(z => z.id);
+  const preferredGates = openGates.filter(g => g.zone === user.currentZone && !discouragedZones.includes(g.zone));
 
-  // Find a balance between the user's preferred zone and wait times.
-  const preferredGates = openGates.filter(g => g.zone === user.preferredZone);
+  let bestGate: GateStatus;
+
   if (preferredGates.length > 0) {
-    bestGate = preferredGates.sort((a, b) => a.waitTimeMinutes - b.waitTimeMinutes)[0];
+    bestGate = preferredGates.sort((a, b) => a.crowdScore - b.crowdScore)[0];
     
-    // Check if there is a significantly faster gate elsewhere
-    const absoluteBestGate = openGates.sort((a, b) => a.waitTimeMinutes - b.waitTimeMinutes)[0];
-    if (absoluteBestGate.waitTimeMinutes < bestGate.waitTimeMinutes - 10) {
+    // Evaluate if another gate is globally much better despite the walk
+    const globalBest = openGates.sort((a, b) => a.estimatedEntryTime - b.estimatedEntryTime)[0];
+    if (globalBest.estimatedEntryTime < bestGate.estimatedEntryTime - 15 && !discouragedZones.includes(globalBest.zone)) {
        return {
-         pathSteps: [`Navigate to ${absoluteBestGate.name} in the ${absoluteBestGate.zone} zone`],
-         estimatedTimeMinutes: absoluteBestGate.waitTimeMinutes,
-         reason: `Your preferred zone (${user.preferredZone}) is busy. This gate saves you ${bestGate.waitTimeMinutes - absoluteBestGate.waitTimeMinutes} minutes.`
+         from: 'Outside',
+         to: globalBest.name,
+         pathSummary: [`Walk around to the ${globalBest.zone} concourse.`, `Enter via ${globalBest.name}.`],
+         estimatedMinutes: globalBest.estimatedEntryTime + 5, // add walk time
+         reason: `Your desired zone (${user.currentZone}) is congested. Rerouting saves significant time.`
        };
     }
-    
+
     return {
-      pathSteps: [`Head to ${bestGate.name}`],
-      estimatedTimeMinutes: bestGate.waitTimeMinutes,
-      reason: `Fastest entry in your seating zone (${user.preferredZone}).`
+      from: 'Outside',
+      to: bestGate.name,
+      pathSummary: [`Proceed to your section via ${bestGate.name}.`],
+      estimatedMinutes: bestGate.estimatedEntryTime,
+      reason: `Best entry for your designated section (${user.section}) in the ${user.currentZone} zone.`
     };
   }
 
-  // Fallback
-  bestGate = openGates.sort((a, b) => a.waitTimeMinutes - b.waitTimeMinutes)[0];
+  bestGate = openGates.sort((a, b) => a.estimatedEntryTime - b.estimatedEntryTime)[0];
   return {
-    pathSteps: [`Head to ${bestGate.name}`],
-    estimatedTimeMinutes: bestGate.waitTimeMinutes,
-    reason: 'Fastest overall wait time.'
+    from: 'Outside',
+    to: bestGate.name,
+    pathSummary: [`Walk to the ${bestGate.zone} zone to avoid crowds.`, `Enter via ${bestGate.name}.`],
+    estimatedMinutes: bestGate.estimatedEntryTime,
+    reason: `Rerouted for the fastest overall entry (crowd score: ${bestGate.crowdScore}).`
   };
 }
 
-export function getShortestQueue(type: QueueStatus['type'], userZone: VenueZone, queues: QueueStatus[]): RouteRecommendation {
-  const openQueues = queues.filter(q => q.isOpen && q.type === type);
-  if (openQueues.length === 0) {
-    return { pathSteps: [], estimatedTimeMinutes: 0, reason: `No open ${type} locations found.` };
-  }
+export function getShortestQueue(type: QueueStatus['type'], userZone: VenueZoneId, queues: QueueStatus[]): RouteRecommendation {
+  const activeQueues = queues.filter(q => q.type === type);
+  if (activeQueues.length === 0) return { from: userZone, to: 'N/A', pathSummary: [], estimatedMinutes: 0, reason: `No ${type} available.` };
 
-  // Try to find one in the user's zone
-  const zoneQueues = openQueues.filter(q => q.zone === userZone).sort((a, b) => a.waitTimeMinutes - b.waitTimeMinutes);
-  if (zoneQueues.length > 0) {
-    const bestQueue = zoneQueues[0];
+  const localQueues = activeQueues.filter(q => q.zone === userZone).sort((a, b) => a.estimatedWait - b.estimatedWait);
+  
+  if (localQueues.length > 0) {
+    const bestLocal = localQueues[0];
     return {
-      pathSteps: [`Walk down the concourse to ${bestQueue.name}`],
-      estimatedTimeMinutes: bestQueue.waitTimeMinutes,
-      reason: `Closest ${type} with the shortest line.`
+      from: userZone,
+      to: `${type} in ${bestLocal.zone}`,
+      pathSummary: [`Stay in the ${userZone} zone.`, `Proceed to the nearest open ${type.toLowerCase()}.`],
+      estimatedMinutes: bestLocal.estimatedWait,
+      reason: `Shortest wait time (${bestLocal.estimatedWait}m) near your seat.`
     };
   }
 
-  // Otherwise, closest globally
-  const bestQueue = openQueues.sort((a, b) => a.waitTimeMinutes - b.waitTimeMinutes)[0];
+  const bestGlobal = activeQueues.sort((a, b) => a.estimatedWait - b.estimatedWait)[0];
   return {
-      pathSteps: [`Navigate to the ${bestQueue.zone} zone to ${bestQueue.name}`],
-      estimatedTimeMinutes: bestQueue.waitTimeMinutes + 5, // Add walk time penalty across zones
-      reason: `Fastest ${type} overall (requires short walk).`
+    from: userZone,
+    to: `${type} in ${bestGlobal.zone}`,
+    pathSummary: [`Leave the ${userZone} zone.`, `Walk to the ${bestGlobal.zone} zone ${type}.`],
+    estimatedMinutes: bestGlobal.estimatedWait + 6,
+    reason: `Fastest ${type} in the venue, worth the walk.`
   };
 }
