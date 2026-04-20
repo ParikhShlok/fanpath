@@ -9,7 +9,7 @@ export function getBestGate(user: UserContext, gates: GateStatus[], zones: Venue
   if (user.needsAccessibility) {
     const adaGates = openGates.filter(g => g.name.toLowerCase().includes('accessibility'));
     if (adaGates.length > 0) {
-      const bestAda = adaGates.sort((a, b) => a.estimatedEntryTime - b.estimatedEntryTime)[0];
+      const bestAda = [...adaGates].sort((a, b) => a.estimatedEntryTime - b.estimatedEntryTime)[0];
       return {
         from: 'Outside',
         to: bestAda.name,
@@ -27,10 +27,10 @@ export function getBestGate(user: UserContext, gates: GateStatus[], zones: Venue
   let bestGate: GateStatus;
 
   if (preferredGates.length > 0) {
-    bestGate = preferredGates.sort((a, b) => a.crowdScore - b.crowdScore)[0];
+    bestGate = [...preferredGates].sort((a, b) => a.crowdScore - b.crowdScore)[0];
     
     // Evaluate if another gate is globally much better despite the walk
-    const globalBest = openGates.sort((a, b) => a.estimatedEntryTime - b.estimatedEntryTime)[0];
+    const globalBest = [...openGates].sort((a, b) => a.estimatedEntryTime - b.estimatedEntryTime)[0];
     if (globalBest.estimatedEntryTime < bestGate.estimatedEntryTime - 15 && !discouragedZones.includes(globalBest.zone)) {
        return {
          from: 'Outside',
@@ -50,7 +50,7 @@ export function getBestGate(user: UserContext, gates: GateStatus[], zones: Venue
     };
   }
 
-  bestGate = openGates.sort((a, b) => a.estimatedEntryTime - b.estimatedEntryTime)[0];
+  bestGate = [...openGates].sort((a, b) => a.estimatedEntryTime - b.estimatedEntryTime)[0];
   return {
     from: 'Outside',
     to: bestGate.name,
@@ -81,7 +81,7 @@ export function getShortestQueue(type: QueueStatus['type'], userZone: VenueZoneI
   return {
     from: userZone,
     to: `${type} in ${bestGlobal.zone}`,
-    pathSummary: [`Leave the ${userZone} zone.`, `Walk to the ${bestGlobal.zone} zone ${type}.`],
+    pathSummary: [`Leave the ${userZone} zone.`, `Walk to the ${bestGlobal.zone} zone ${type.toLowerCase()}.`],
     estimatedMinutes: bestGlobal.estimatedWait + 6,
     reason: `Fastest ${type} in the venue, worth the walk.`
   };

@@ -1,4 +1,6 @@
 export type VenueZoneId = 'North' | 'South' | 'East' | 'West';
+export type AssistantQuery = 'Restroom' | 'Concession' | 'Merchandise';
+export type UserPreference = 'Accessible' | 'VIP' | 'Family';
 
 export interface VenueZone {
   id: VenueZoneId;
@@ -18,7 +20,7 @@ export interface GateStatus {
 
 export interface QueueStatus {
   id: string;
-  type: 'Restroom' | 'Concession' | 'Merchandise';
+  type: AssistantQuery;
   zone: VenueZoneId;
   estimatedWait: number; // minutes
 }
@@ -26,7 +28,7 @@ export interface QueueStatus {
 export interface Amenity {
   id: string;
   name: string;
-  type: 'Restroom' | 'Concession' | 'Merchandise';
+  type: AssistantQuery;
   zone: VenueZoneId;
   distanceCues: string; // e.g., "Near Section 104"
 }
@@ -51,7 +53,7 @@ export interface RouteRecommendation {
 
 export interface UserContext {
   section: string;
-  preferences: string[];
+  preferences: UserPreference[];
   needsAccessibility: boolean;
   arrivalGate?: string;
   currentZone: VenueZoneId;

@@ -1,23 +1,27 @@
-# Just built FanPath! 🏟️🚀
+# Built FanPath: a Smart Venue Assistant
 
-I'm thrilled to share my latest build: **FanPath**, a smart, mobile-first web app designed to revolutionize the stadium experience! Built this weekend as part of the Google Deepmind hackathon.
+I just wrapped **FanPath**, a mobile-first web app built for the **Smart Venue Assistant** challenge.
 
-**The Problem:** Large-scale sporting events often mean massive crowds and long waits, making it hard to figure out the fastest gate, the quickest restroom line, or the best place to grab a bite without missing the action.
+The idea is simple: large venues are stressful when you are trying to enter quickly, avoid congestion, and still find food, restrooms, or merchandise without wasting time. FanPath helps attendees make better decisions in real time.
 
-**The Solution:** FanPath acts as your personal, context-aware venue assistant.
+## What FanPath does
 
-**Key Features:**
-- 🧭 **Smart Navigation**: Tells you the best entry gate based on your specific seat section and real-time wait times.
-- ♿ **Accessibility First**: Dynamically filters recommendations for ADA-compliant routes if needed.
-- 🤖 **Smart Assistant Q&A**: Need food fast? FanPath analyzes all open concourse lines and directs you to the shortest queue in your zone.
-- 🗺️ **Interactive Maps**: Fully integrated spatial awareness for clear directions.
+- Recommends the best entry gate based on section, congestion, and accessibility needs.
+- Surfaces live venue alerts with clear suggested actions.
+- Uses **Google Maps** to keep venue context visible.
+- Uses **Google Gemini** through the official `@google/genai` SDK for amenity guidance, with a deterministic fallback so the experience still works without secrets.
 
-**The Tech Stack:**
-- **Next.js (App Router) & TypeScript**: Ensures a blazing fast, type-safe, and scalable architecture.
-- **Vanilla CSS (Glassmorphism UI)**: I skipped the heavy frameworks and opted for premium, raw CSS using variables to create a lightweight, responsive, dark-mode design that works flawlessly on mobile.
+## What I focused on technically
 
-Building this taught me so much about routing logic, dynamic algorithms, and crafting a premium user experience from scratch. 
+- **Next.js 16 + TypeScript** for a modern App Router architecture.
+- Stronger **accessibility** with semantic sections, skip navigation, better form labels, focus states, and live status messaging.
+- Better **security** with validated API inputs and production headers like CSP and `Referrer-Policy`.
+- Better **testing** with Vitest coverage for the core routing logic.
+- Cleaner **maintainability** by moving venue decisions into shared helper modules.
 
-Check out the code here: [Link to Repo]
+This project was a great exercise in combining product thinking, routing logic, real-world UX constraints, and Google service integration into one focused assistant experience.
 
-#Nextjs #TypeScript #WebDevelopment #Hackathon #UIUX #GoogleDeepmind #SoftwareEngineering
+Repo: [Add your GitHub repo link here]
+Live preview: [Add your deployed link here]
+
+#Nextjs #TypeScript #GoogleAI #GeminiAPI #GoogleMaps #WebDevelopment #Hackathon #Accessibility #SoftwareEngineering

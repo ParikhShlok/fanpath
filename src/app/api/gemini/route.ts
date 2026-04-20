@@ -1,22 +1,32 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
+import { buildFallbackRecommendation, isAssistantQuery, zoneFromSection } from '@/lib/venue';
+
+export const runtime = 'nodejs';
 
 export async function POST(req: Request) {
   try {
     const { query, userContext, venueState } = await req.json();
 
-    // The evaluator will see we have actually built the integration pipeline
-    // using the official @google/genai SDK.
+    if (!isAssistantQuery(query)) {
+      return NextResponse.json({ success: false, error: 'Unsupported assistant query.' }, { status: 400 });
+    }
+
+    const section = typeof userContext?.section === 'string' ? userContext.section : '101';
+    const fallbackRecommendation = buildFallbackRecommendation(query, {
+      currentZone: zoneFromSection(section),
+    });
+
     const apiKey = process.env.GEMINI_API_KEY;
-    
-    // In a Google Hackathon, they look for real service integration or fallback
+
     if (apiKey) {
       const ai = new GoogleGenAI({ apiKey });
       const prompt = `You are StadiumFlow AI, a smart assistant for a large venue.
 Context:
-User Section: ${userContext?.section || 'North'}
+User Section: ${section}
 Venue State: ${JSON.stringify(venueState)}
 User's Question: What is the fastest ${query} nearby?
+Expected fallback route: ${fallbackRecommendation.reason}
 
 Respond with a concise, helpful 1-2 sentence recommendation on where they should go based on the venue state wait times. Include an encouraging tone.`;
 
@@ -26,30 +36,20 @@ Respond with a concise, helpful 1-2 sentence recommendation on where they should
       });
 
       return NextResponse.json({
-         success: true,
-         recommendation: {
-            reason: response.text,
-            estimatedMinutes: Math.floor(Math.random() * 5) + 2, // AI estimate
-            pathSummary: ['Follow AI guided path', 'Arrive at destination']
-         }
+        success: true,
+        recommendation: {
+          ...fallbackRecommendation,
+          reason: response.text?.trim() || fallbackRecommendation.reason,
+        },
       });
     }
 
-    // Fallback if no `.env` is set (very common for hackathon reviewers testing your repo)
-    // We demonstrate the logic anyway.
-    await new Promise(resolve => setTimeout(resolve, 800)); // Simulate AI delay
-    
     return NextResponse.json({
       success: true,
-      recommendation: {
-         reason: `Based on your location in ${userContext?.section || 'North'}, the fastest ${query} is currently near Gate 4. The queue is moving quickly right now!`,
-         estimatedMinutes: 3,
-         pathSummary: ['Head towards Gate 4', 'Follow signs for ' + query, 'Arrive at destination']
-      }
+      recommendation: fallbackRecommendation,
     });
-
   } catch (error) {
-    console.error("Gemini AI Error:", error);
+    console.error('Gemini AI Error:', error);
     return NextResponse.json({ success: false, error: 'Failed to process request' }, { status: 500 });
   }
 }

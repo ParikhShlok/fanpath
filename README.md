@@ -1,42 +1,77 @@
-# StadiumFlow: Smart Venue Assistant
+# FanPath: Smart Venue Assistant
 
-StadiumFlow is a dynamic, mobile-first web application designed to eliminate crowd congestion and elevate the attendee experience at large-scale sporting venues. Built explicitly for the **Smart Venue Assistant** vertical, this Next.js app provides real-time, context-aware routing, crowd management warnings, and an AI-driven smart assistant.
+FanPath is a mobile-first Next.js 16 application built for the **Smart Venue Assistant** challenge vertical. It helps attendees choose the best gate, respond to live venue alerts, and find the fastest nearby amenity through a safe Google Gemini integration with deterministic fallback logic.
 
-## The Chosen Vertical
-**Smart Venue Assistant:** We focus on optimizing attendee flow, ensuring the fastest entry times and providing real-time operational context (e.g., shortest food/merch lines).
+## Chosen Vertical
+
+**Smart Venue Assistant**
+
+The product is designed for attendees entering and navigating a large sports or entertainment venue. The assistant focuses on reducing congestion, improving arrival flow, and keeping visitors informed with clear routing guidance.
 
 ## Approach and Logic
-StadiumFlow operates on real-time simulated queue mapping. Our routing logic (`getBestGate`) processes a user's specific venue section and preferences (such as VIP access or ADA compliance requirement) against the live capacities of all entry gates. 
-- It actively re-routes users from congested gates to optimal alternatives. 
-- The smart assistant evaluates spatial awareness to recommend the fastest path to concessions, restrooms, or merchandise.
+
+FanPath combines deterministic venue logic with optional AI assistance:
+
+- A venue-routing engine scores open gates by congestion, wait time, and accessibility needs.
+- Search-param onboarding lets the app tailor routing by attendee section and preferences.
+- Live alert prioritization surfaces the most important operational issue first.
+- The assistant API validates incoming requests, uses the official `@google/genai` SDK when `GEMINI_API_KEY` is available, and falls back to a predictable venue recommendation when reviewers run the repo without secrets.
+- Google Maps is embedded directly in the dashboard so evaluators can see a real Google service in the user flow.
 
 ## How the Solution Works
-1. **User Onboarding Phase:** Attendee enters their ticket section and personal preferences.
-2. **Dashboard Overview:** The user is met with live venue alerts, an interactive entry map (featuring Google Maps integration), and a calculated optimal entry route.
-3. **Smart Assistant Querying:** Users can prompt the AI Assistant for recommendations on amenities. 
-4. **Google Services Integration:** 
-   - **Google Maps Embed API:** Pinpoints and interactive overview of the destination natively within the Dashboard.
-   - **Google Gemini AI SDK (`@google/genai`):** Built-in integration endpoint that simulates live prompt-processing to yield real-time pathing recommendations, proving out dynamic API implementations.
 
-## Assumptions Made
-1. **Venue Capacity Data:** We assume access to live venue tracking APIs (simulated in our app via mock context states).
-2. **Connectivity:** We assume attendees possess reliable mobile connectivity to actively utilize the live updates.
-3. **AI Fallbacks:** For the purpose of seamless Hackathon evaluation, our Google Gemini AI router provides an offline mock fallback in the event that `.env` API keys are missing on the evaluator's system, guaranteeing zero friction during review.
+1. The attendee selects a section and optional preferences from the home screen.
+2. The dashboard derives the attendee zone and recommends the best entry gate.
+3. Live alerts explain current venue issues and suggested actions.
+4. The assistant page answers amenity queries such as concessions, restrooms, and merchandise.
+5. The Gemini route returns a concise recommendation while preserving a safe local fallback path.
 
-## Setup Instructions
+## Google Services Used
 
-Ensure your machine fulfills the prerequisites (Node, Git). The repository size is well under 1MB.
+- **Google Maps Embed** powers the venue map preview in the dashboard.
+- **Google Gemini via `@google/genai`** powers contextual amenity guidance in `src/app/api/gemini/route.ts`.
 
-1. Clone the repository and navigate inside.
-2. Install dependencies:
+## Quality Improvements Included
+
+This submission was hardened specifically against the evaluation rubric:
+
+- **Code Quality:** shared venue helpers, cleaner route logic, stronger typing, and lower client-side surface area on non-interactive pages.
+- **Security:** validated assistant input, response fallback logic, Content Security Policy, `Referrer-Policy`, `X-Content-Type-Options`, and restrictive `Permissions-Policy` headers.
+- **Efficiency:** reduced unnecessary client routing, deterministic recommendation reuse, and a separate production build output to avoid stale local build artifacts.
+- **Testing:** Vitest unit tests cover routing and venue helper behavior.
+- **Accessibility:** skip link, better labels, `aria-live` status messaging, semantic sections, `aria-current` navigation state, focus-visible styling, and reduced-motion support.
+
+## Assumptions
+
+- Venue status is represented with mock operational data in `src/lib/mockData.ts`.
+- Reviewers may not provide API keys, so Gemini must degrade gracefully.
+- Section numbers map to venue zones by their leading digit for this prototype.
+
+## Local Setup
+
+1. Install dependencies:
    ```bash
    npm install
    ```
-3. Run the application:
+2. Start the dev server:
    ```bash
    npm run dev
    ```
-4. Accessible at [http://localhost:3000](http://localhost:3000). To perfectly evaluate the Pro-Designer Mobile-First interface, view through Developer Tools Device Emulation (e.g., iPhone 14 Pro view).
+3. Run checks:
+   ```bash
+   npm run lint
+   npm run test
+   npm run build
+   ```
 
----
-*Built within the Antigravity Environment.*
+## Project Structure
+
+- `src/app/` contains the App Router pages, metadata routes, and Gemini endpoint.
+- `src/components/` contains the shared UI building blocks.
+- `src/lib/` contains mock data, routing logic, and venue helpers.
+
+## Submission Notes
+
+- The repository is intended to stay public and on a single branch for submission.
+- The LinkedIn narrative lives in `linkedin_post.md`.
+- Environment variables are ignored by `.gitignore`; use `GEMINI_API_KEY` only when you want live Gemini responses.
